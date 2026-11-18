@@ -33,7 +33,7 @@ public partial class MainWindow : Window
         }
         else if (_ffmpegDir == null)
             Loaded += (_, _) => MessageBox.Show(this,
-                "ffmpeg не найден (рядом с программой, рядом с yt-dlp или в PATH): треки не будут сконвертированы в MP3.\nРаспакуйте ffmpeg.7z и добавьте папку bin в PATH.",
+                "ffmpeg не найден (рядом с программой, рядом с yt-dlp или в PATH): треки не будут сконвертированы в FLAC (останутся webm).\nРаспакуйте ffmpeg.7z и добавьте папку bin в PATH.",
                 "MusicDownloader", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
@@ -74,7 +74,7 @@ public partial class MainWindow : Window
     {
         var args = new List<string> { url, "--yes-playlist", "--ignore-errors", "--newline",
             "--download-archive", Path.Combine(folder, "archive.txt"),
-            "--extract-audio", "--audio-format", "mp3", "--audio-quality", "0",
+            "-f", "bestaudio/best", "--extract-audio", "--audio-format", "flac",
             "-o", Path.Combine(folder, "%(playlist_title|Singles)s", "%(playlist_index&{} |)s%(title)s.%(ext)s") };
         if (ffmpegDir != null) args.AddRange(["--ffmpeg-location", ffmpegDir]);
         return args.ToArray();
