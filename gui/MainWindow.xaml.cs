@@ -14,13 +14,15 @@ public partial class MainWindow : Window
     static readonly Regex PercentRx = new(@"\[download\]\s+([\d.]+)%");
 
     readonly string? _ytDlp = FindYtDlp();
+    readonly string? _ffmpegDir;
     Process? _process;
     string _item = "";
 
     public MainWindow()
     {
         InitializeComponent();
-        FolderBox.Text = Path.Combine(Directory.GetCurrentDirectory(), "downloads");
+        _ffmpegDir = FindFfmpegDir(_ytDlp);
+        FolderBox.Text = LoadFolder();
         if (_ytDlp == null)
         {
             DownloadButton.IsEnabled = UpdateButton.IsEnabled = false;
@@ -29,9 +31,9 @@ public partial class MainWindow : Window
                 "yt-dlp.exe не найден ни рядом с программой, ни в корне репозитория.\nПоложите yt-dlp.exe рядом с MusicDownloaderGui.exe.",
                 "MusicDownloader", MessageBoxButton.OK, MessageBoxImage.Error);
         }
-        else if (!FfmpegOnPath())
+        else if (_ffmpegDir == null)
             Loaded += (_, _) => MessageBox.Show(this,
-                "ffmpeg не найден в PATH: треки не будут сконвертированы в MP3.\nРаспакуйте ffmpeg.7z и добавьте папку bin в PATH.",
+                "ffmpeg не найден (рядом с программой, рядом с yt-dlp или в PATH): треки не будут сконвертированы в MP3.\nРаспакуйте ffmpeg.7z и добавьте папку bin в PATH.",
                 "MusicDownloader", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
@@ -46,9 +48,37 @@ public partial class MainWindow : Window
         return null;
     }
 
-    static bool FfmpegOnPath() =>
-        (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)
-            .Any(d => { try { return File.Exists(Path.Combine(d.Trim(), "ffmpeg.exe")); } catch { return false; } });
+    // Next to the exe, next to yt-dlp, then PATH.
+    static string? FindFfmpegDir(string? ytDlp) =>
+        new[] { AppContext.BaseDirectory, ytDlp == null ? "" : Path.GetDirectoryName(ytDlp)! }
+            .Concat((Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
+            .FirstOrDefault(d => { try { return d.Trim().Length > 0 && File.Exists(Path.Combine(d.Trim(), "ffmpeg.exe")); } catch { return false; } })
+            ?.Trim();
+
+    static readonly string SettingsFile = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MusicDownloader", "folder.txt");
+
+    static string LoadFolder()
+    {
+        try { var saved = File.ReadAllText(SettingsFile).Trim(); if (saved.Length > 0) return saved; } catch { }
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), "MusicDownloader");
+    }
+
+    static void SaveFolder(string folder)
+    {
+        try { Directory.CreateDirectory(Path.GetDirectoryName(SettingsFile)!); File.WriteAllText(SettingsFile, folder); } catch { }
+    }
+
+    // Public for the arg-level test: exactly what the GUI passes to yt-dlp.
+    public static string[] BuildArgs(string url, string folder, string? ffmpegDir)
+    {
+        var args = new List<string> { url, "--yes-playlist", "--ignore-errors", "--newline",
+            "--download-archive", Path.Combine(folder, "archive.txt"),
+            "--extract-audio", "--audio-format", "mp3", "--audio-quality", "0",
+            "-o", Path.Combine(folder, "%(playlist_title|Singles)s", "%(playlist_index&{} |)s%(title)s.%(ext)s") };
+        if (ffmpegDir != null) args.AddRange(["--ffmpeg-location", ffmpegDir]);
+        return args.ToArray();
+    }
 
     async void Download_Click(object sender, RoutedEventArgs e)
     {
@@ -64,11 +94,8 @@ public partial class MainWindow : Window
         try { Directory.CreateDirectory(folder); }
         catch (Exception ex) { StatusText.Text = "Не удалось создать папку: " + ex.Message; return; }
 
-        // Same args as download_all.bat link mode (+ --newline for progress parsing).
-        await Run("Скачивание…", url, "--yes-playlist", "--ignore-errors", "--newline",
-            "--download-archive", Path.Combine(folder, "archive.txt"),
-            "--extract-audio", "--audio-format", "mp3", "--audio-quality", "0",
-            "-o", Path.Combine(folder, "%(playlist_title|Singles)s", "%(playlist_index|)s %(title)s.%(ext)s"));
+        SaveFolder(folder);
+        await Run("Скачивание…", BuildArgs(url, folder, _ffmpegDir));
     }
 
     async void Update_Click(object sender, RoutedEventArgs e) => await Run("Обновление yt-dlp…", "-U");
@@ -77,7 +104,7 @@ public partial class MainWindow : Window
     {
         var dlg = new OpenFolderDialog();
         if (Directory.Exists(FolderBox.Text)) dlg.InitialDirectory = FolderBox.Text;
-        if (dlg.ShowDialog(this) == true) FolderBox.Text = dlg.FolderName;
+        if (dlg.ShowDialog(this) == true) SaveFolder(FolderBox.Text = dlg.FolderName);
     }
 
     async Task Run(string status, params string[] args)

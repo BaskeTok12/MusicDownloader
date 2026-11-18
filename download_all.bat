@@ -34,7 +34,7 @@ echo Downloading: %URL%
     --audio-format mp3 ^
     --audio-quality 0 ^
     --prefer-ffmpeg ^
-    -o "downloads/%%(playlist_title|Singles)s/%%(playlist_index|)s %%(title)s.%%(ext)s" ^
+    -o "downloads/%%(playlist_title|Singles)s/%%(playlist_index&{} |)s%%(title)s.%%(ext)s" ^
     %2 %3 %4 %5 %6 %7 %8 %9
 
 :done
