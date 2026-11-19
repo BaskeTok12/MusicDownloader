@@ -22,7 +22,14 @@
         <Button x:Name="DownloadButton" Grid.Row="1" Grid.Column="2" Content="Скачать" Width="140" Margin="0,0,0,10"
                 Background="{StaticResource Accent}" Click="Download_Click"/>
 
-        <TextBox x:Name="FolderBox" Grid.Row="2" Grid.ColumnSpan="2" Margin="0,0,8,10" ToolTip="Папка для сохранения"/>
+        <TextBox x:Name="FolderBox" Grid.Row="2" Margin="0,0,8,10" ToolTip="Папка для сохранения"/>
+        <ComboBox x:Name="LoginBox" Grid.Row="2" Grid.Column="1" Width="110" Margin="0,0,8,10"
+                  ToolTip="Вход в YouTube для приватных плейлистов, например «Понравившиеся» (list=LM): браузер, где вы вошли в YouTube, или файл cookies.txt рядом с программой. Chrome перед скачиванием закройте полностью">
+            <ComboBoxItem Content="Без входа" Tag="" IsSelected="True"/>
+            <ComboBoxItem Content="Chrome" Tag="chrome"/>
+            <ComboBoxItem Content="Firefox" Tag="firefox"/>
+            <ComboBoxItem Content="cookies.txt" Tag="cookies.txt"/>
+        </ComboBox>
         <Button Grid.Row="2" Grid.Column="2" Content="Папка…" Width="140" Margin="0,0,0,10" Click="Browse_Click"/>
 
         <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Margin="0,0,0,10">
